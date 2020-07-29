@@ -1,0 +1,158 @@
+// ATF.hoc
+// Writes data in axon text file (*.atf) format
+// Last revision: 11/17/2006
+// CSH, University of Freiburg
+// modified by JB 6.9.2014 
+//
+// Usage:
+// 1. Create a file:
+//	objref myFile
+//	myFile=new ATF_File("myFilename.atf")
+//	or
+//	myFile=new ATF_File() // default file name is "unnamed.atf"
+// 2.	Set members:
+//	myFile.x_scale=dt	    // sampling interval; default is 1.0
+//	myFile.x_units="us"   // default is "ms"
+//	myFile.y_units="pA"   // default is "mV"
+// 3.	Add vectors:
+//	objref myVec
+//	myVec=new Vector(20,0.2)
+//	myFile.addVec(myVec)
+//	or
+//	myFile.addVec(myVec,"myVecTitle")
+// 4a Write everything to file and close it:
+//	myFile.flush()
+// 4b Or close file without writing:
+//	myFile.close()
+//
+// The individual vectors will be written into columns,
+// the first column will contain the time values.
+// Note that nothing will be written to your file
+// as long as you don't call flush().
+//
+// Known restrictions:
+// 1. Write-only; existing ATF files can currently not be read
+//	into a List of Vectors
+// 2.	No access to the List other than appending Vectors is currently
+//	granted; this could easily be implemented by forwarding
+//	List member functions (described as "emulation of 
+//	inheritance" in chapter 13.5 of the NEURON book).
+// 3. Once flush() has been called, the file will be closed and
+//	can't be re-opened.
+// 4. File name can't be changed once an object has been created
+// 5. Only the minimum required by the ATF specification is
+//	written into the header.
+//
+
+// Wrapper class for strings so they can be treated like objects
+// (can't be sure the standard library's String is loaded):
+begintemplate StringClass
+public myString
+strdef myString
+endtemplate StringClass
+
+begintemplate ATF_File
+// public:
+	public addVec, flush, filename, x_scale, x_units, y_units 
+	strdef x_units, y_units
+
+// private:
+	// a list of vectors:
+	objref vecList
+	// the vectors' names:
+	objref vecNameList
+	// a File object:
+	objref file
+	// the file name:
+	strdef filename
+
+// Constructor:
+proc init() {
+	vecList=new List()
+	vecNameList=new List()
+	if (numarg()==1) {
+		filename=$s1
+	} else {
+		filename="unnamed.atf"
+	}
+	file=new File(filename)
+	file.wopen()
+	x_scale=1.0
+	x_units="ms"
+	y_units="mV"
+}
+
+// public member functions:	
+// Append a Vector to the Vector List:
+proc addVec() {local allowed localobj vecName
+	// check whether the vector can be added:
+	allowed=1
+	if (!file.isopen()) {
+		print "ATF file has been closed and can't be re-opened."
+		allowed=0
+	} else {
+		if (vecList.count()!=0) {
+			// can't put this into one single if statement,
+			// because vecList.o(0) does not exist if
+			// vecList.count()==0 - but will still be 
+			// tested if within the same statement
+			if ($o1.size()!=vecList.o(0).size()) {
+				print "Vectors must have equal sizes"
+				allowed=0
+			}
+		}
+	}
+	if (allowed) {
+		vecList.append($o1)
+		vecName=new StringClass()
+		if (numarg()==2) {
+			vecName.myString=$s2
+		} else {
+			sprint(vecName.myString,"Vector[%d]",vecList.count()-1)
+		}
+		vecNameList.append(vecName)
+	}
+}
+
+//*****************************************************
+// Write everything to the file, erase the Vector List and close the file
+//*****************************************************
+
+proc flush() {local m, n // m collums, n lines
+	if (!file.isopen()) {
+		print "ATF file has been closed and can't be re-opened."
+		} else {
+		// Write Header:
+		file.printf("ATF\t1.0\n%d \t%d \n",0, vecList.count()+1)
+		
+		// Write column titles:
+		file.printf("\"Time (%s)\"\t",x_units)
+		for m=0,vecList.count()-1 {
+			file.printf("\"%s (%s)\"\t",vecNameList.o(m).myString,y_units)
+		}
+		file.printf("\n")
+		
+		// Write data columns:
+		for n=0,vecList.o(0).size()-1 {
+			// First column is time:
+			file.printf("%f\t",x_scale*n)
+			for m=0,vecList.count()-1 {
+				file.printf("%f\t",vecList.o(m).x(n))
+			}		
+			file.printf("\n")
+		}
+		vecList.remove_all()	
+		file.close()
+	}
+}		
+
+proc close() {
+	if (!file.isopen()) {
+		print "ATF file has already been closed."
+	} else {
+		file.close()
+	}
+}
+
+endtemplate ATF_File
+

@@ -1,0 +1,57 @@
+n_glu_syn=3
+n_GABA_syn=2
+// synaptic inputs
+objref nsGABA[n_GABA_syn],ncGABA[n_GABA_syn],synGABA[n_GABA_syn]
+objref nsAMPA[n_glu_syn],ncAMPA[n_glu_syn],synAMPA[n_glu_syn]
+objref nsNMDA[n_glu_syn],ncNMDA[n_glu_syn],synNMDA[n_glu_syn]
+
+// parameters
+celsius = 35
+v_init=-70
+global_ra=200.00 	// internal resistivity in ohm-cm 
+Cm= 1               // specific membrane capacitance in uF/cm^2 
+Rm=10000		// specific membrane resistivity in ohm-cm^2 
+Vleak=-70 
+Vrest=-70	
+
+nmdaTau1 = 3 // faster dynamics measured at hyperpolarised membrane potential
+nmdaTau2 = 35 // see also Kampa at al. J Physiol 2004
+
+// Inhibition parameters.
+inhRev = -70 
+
+// make dendritic compartment
+create dend
+
+dend {
+	nseg =51 
+	diam = 2
+	L = 100
+    insert pas	
+    e_pas=Vleak  
+    g_pas=1/Rm   
+    Ra=global_ra  
+    cm=Cm
+    }
+
+// insert a Glu and a GABA synapse
+x=0.5
+for (ii=0; ii<n_glu_syn; ii=ii+1){
+    dend synAMPA[ii] = new excSyn(x)
+    synAMPA[ii].isOn=1
+    nsAMPA[ii] = new NetStim()
+    ncAMPA[ii] = new NetCon(nsAMPA[ii], synAMPA[ii])
+
+    dend synNMDA[ii] = new Exp2SynNmda(x)
+    synNMDA[ii].isOn=1
+    nsNMDA[ii] = new NetStim()
+    ncNMDA[ii] = new NetCon(nsNMDA[ii], synNMDA[ii])
+}
+
+x=0.5
+for (ii=0; ii<n_GABA_syn; ii=ii+1){
+    dend synGABA[ii] = new inhSyn(x)
+    synGABA[ii].isOn=1
+    nsGABA[ii] = new NetStim()
+    ncGABA[ii] = new NetCon(nsGABA[ii], synGABA[ii])
+    }

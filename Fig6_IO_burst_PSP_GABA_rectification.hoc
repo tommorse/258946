@@ -1,0 +1,203 @@
+// GENERATE A FAMILY OF BURST PSPs DEPENDING ON THE TYPE OF INHIBITION
+// JM Schulz, 2018
+
+nrnpython("import numpy as N")
+
+strdef ColLabel, file_name1, file_name2, file_name3, file_name4
+objref storeM_slow, storeM_noRect, storeM_onlyRect, storeM_partRect
+
+load_file("Print-to-File.hoc")
+
+ColLabel = "Membrane potential"
+file_name1="C:/../Inh_slow.atf"
+file_name2="C:/../Inh_noRect.atf"
+file_name3="C:/../Inh_onlyRect.atf"
+file_name4="C:/../Inh_partRect.atf"
+
+// Numerical parameters for simulation.
+tstop = 300 // stop time of simulation
+stimStart=20
+dtime=0.2
+
+simul_iter=8
+ampaWeight=0.00014
+nmdaWeight=0.00014 //ampaWeight
+GABAweight_total=1.4*0.0005
+
+// parameters of voltage-dependent magnesium block of NMDAR
+alpha_vspom=-0.087
+v0_block=-10
+
+//synGABA[0] is not rectifying, synGABA[1] is rectifying
+GABAweight0=GABAweight_total/5 
+GABAweight1=4*GABAweight_total/5  
+GABAtau2=30
+GABAtau1=1.0
+
+synGABA[0].tau1= 0.5
+synGABA[0].tau2 = 15 
+ncGABA[0].weight = GABAweight0 
+synGABA[0].slope_factor=0.3
+synGABA[0].V50=-150
+
+synGABA[1].tau1= GABAtau1
+synGABA[1].tau2 = GABAtau2
+ncGABA[1].weight = GABAweight1
+synGABA[1].slope_factor=3
+synGABA[1].V50=-52
+
+//setup recording vectors
+objref recv, rect
+recv = new Vector()
+rect = new Vector()
+storeM_slow = new Matrix(tstop/dtime+1,simul_iter) 
+storeM_noRect = new Matrix(tstop/dtime+1,simul_iter) 
+storeM_onlyRect = new Matrix(tstop/dtime+1,simul_iter) 
+storeM_partRect = new Matrix(tstop/dtime+1,simul_iter) 
+
+recv.record(&dend.v(0.5),dtime)
+rect.record(&t)
+
+
+// Create graphs for visualisation.
+objref Inh_slow, Inh_noRect, Inh_onlyRect, Inh_partRect
+objref shapeSyn 
+
+Inh_slow = new Graph() 
+Inh_slow.label("Normal inhibition")
+Inh_slow.addvar("dend.v(0.5)",2,1)
+Inh_slow.exec_menu("Keep Lines")
+Inh_slow.size(0,tstop,-75,-15)
+
+Inh_noRect = new Graph() 
+Inh_noRect.label("No rectification")
+Inh_noRect.addvar("dend.v(0.5)",2,1)
+Inh_noRect.exec_menu("Keep Lines")
+Inh_noRect.size(0,tstop,-75,-15)
+
+Inh_onlyRect = new Graph() 
+Inh_onlyRect.label("Only rectifying part")
+Inh_onlyRect.addvar("dend.v(0.5)",2,1)
+Inh_onlyRect.exec_menu("Keep Lines")
+Inh_onlyRect.size(0,tstop,-75,-15)
+
+Inh_partRect = new Graph()
+Inh_partRect.label("Rectifying part reduced by 50%")
+Inh_partRect.addvar("dend.v(0.5)",2,1)
+Inh_partRect.exec_menu("Keep Lines")
+Inh_partRect.size(0,tstop,-75,-15)
+
+shapeSyn = new Shape()
+shapeSyn.label("Syn")
+
+// Adjust GABA synapse dynamics
+shapeSyn.point_mark(synGABA[0],3,"O",6)
+for (ii=0; ii<n_GABA_syn; ii=ii+1){
+    synGABA[ii].isOn=1
+    synGABA[ii].e = inhRev
+
+    nsGABA[ii].interval = 20
+    nsGABA[ii].number = 5
+    nsGABA[ii].start = stimStart
+    nsGABA[ii].noise = 0
+    ncGABA[ii].delay = 0
+}
+
+// IMPLEMENT SYNAPTIC SHORT-TERM PLASTICITY, PART I
+shapeSyn.point_mark(synAMPA[0],2,"O",6)
+
+nsAMPA[0].number = 5
+nsAMPA[0].start = stimStart
+
+nsNMDA[0].number = 5
+nsNMDA[0].start = stimStart
+
+nsAMPA[1].number = 4
+nsAMPA[1].start = stimStart+20
+
+nsNMDA[1].number = 4
+nsNMDA[1].start = stimStart+20
+
+nsAMPA[2].number = 3
+nsAMPA[2].start = stimStart+40
+
+nsNMDA[2].number = 3
+nsNMDA[2].start = stimStart+40
+for (ii=0; ii<n_glu_syn; ii=ii+1){
+    synAMPA[ii].isOn=1
+    synNMDA[ii].isOn=1
+    synAMPA[ii].tau1= 0.2  // Jarsky et al., 2005
+    synAMPA[ii].tau2 = 2 // Jarsky et al., 2005
+
+    nsAMPA[ii].interval = 20
+    nsAMPA[ii].noise = 0
+    ncAMPA[ii].delay = 0
+
+    synNMDA[ii].tau1= 3  
+    synNMDA[ii].tau2 = 35
+    
+    nsNMDA[ii].interval = 20
+    nsNMDA[ii].noise = 0
+    ncNMDA[ii].delay = 0
+    synNMDA[ii].alpha_vspom=alpha_vspom
+    synNMDA[ii].v0_block=v0_block
+}
+// turn off cvode variable time step in order to avoid errors during repetitive simulations
+cvode_active(0)
+    
+// run simulation for different numbers of glu inputs
+for(jj=1; jj<simul_iter+1; jj=jj+1){
+    print jj
+    // IMPLEMENT SYNAPTIC SHORT-TERM PLASTICITY, PART II
+    ncAMPA[0].weight = jj*ampaWeight
+    ncNMDA[0].weight = jj*nmdaWeight
+    ncAMPA[1].weight = jj*ampaWeight/2
+    ncNMDA[1].weight = jj*nmdaWeight/2
+    ncAMPA[2].weight = jj*ampaWeight/2
+    ncNMDA[2].weight = jj*nmdaWeight/2
+    
+    //normal inhibition
+    if (jj%2==1){curGr = graphList[0].append(Inh_slow) }
+    finitialize()
+    run()
+    if (jj%2==1){   graphList[0].remove(curGr-1)   }
+    storeM_slow.setcol(jj-1,recv)
+    
+    //no rectification
+    synGABA[1].slope_factor=0.3
+    synGABA[1].V50=-152 
+    ncGABA[1].weight = GABAweight1/4   
+    if (jj%2==1){curGr = graphList[0].append(Inh_noRect)}
+    finitialize()
+    run()
+    storeM_noRect.setcol(jj-1,recv)
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    synGABA[1].slope_factor=3
+    synGABA[1].V50=-52
+    ncGABA[1].weight = GABAweight1
+    
+    //only rectification 
+    ncGABA[0].weight = 0
+    if (jj%2==1){curGr = graphList[0].append(Inh_onlyRect)}
+    finitialize()
+    run()
+    storeM_onlyRect.setcol(jj-1,recv)
+    if (jj%2==1){graphList[0].remove(curGr-1)    } 
+    ncGABA[0].weight = GABAweight0 
+    
+    //effect of alpha5-NAM, 50% reduction of rectifying component    
+    ncGABA[1].weight = GABAweight1/2
+    if (jj%2==1){curGr = graphList[0].append(Inh_partRect)}
+    finitialize()
+    run()
+    storeM_partRect.setcol(jj-1,recv)
+    if (jj%2==1){graphList[0].remove(curGr-1)    }    
+    ncGABA[1].weight = GABAweight1
+}
+/*
+// SAVE OUTPUT
+print2file(storeM_slow,file_name1,ColLabel)
+print2file(storeM_noRect,file_name2,ColLabel)
+print2file(storeM_onlyRect,file_name3,ColLabel)
+print2file(storeM_partRect,file_name4,ColLabel)
+*/

@@ -1,0 +1,27 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Jan M Schulz
+// University of Basel
+// May, 2017
+//
+// Correspondence: j.schulz@unibas.ch
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// LOAD GUI.
+{
+	load_file("nrngui.hoc")
+}
+
+// LOAD COMPARTMENT.
+{
+	load_file("make_dend_compartment.hoc")
+	//load_file("my_compartment_VC.hoc")
+}
+
+// START STIMULATION
+{
+    //load_file("Fig6_IO_burst_PSP_GABA_rectification.hoc")
+    load_file("Fig7_IO_burst_PSP_GABA_kinetics.hoc")
+    
+}

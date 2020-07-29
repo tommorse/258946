@@ -1,0 +1,278 @@
+// GENERATE A FAMILY OF BURST PSPs DEPENDING ON THE KINETICS OF INHIBITION
+// JM Schulz, 2018
+
+nrnpython("import numpy as N")
+
+strdef ColLabel, file_name1, file_name2, file_name3, file_name4, file_name5, file_name6, file_name7
+objref storeM_slow, storeM_fast, storeM_fastnorm, storeM_AMPA, storeM_slow_AMPA, storeM_fast_AMPA, storeM_fastnorm_AMPA
+
+load_file("Print-to-File.hoc")
+
+ColLabel = "Membrane potential"
+file_name1="C:/../AMPA_no_Inh.atf"
+file_name2="C:/../AMPA_Inh_slow.atf"
+file_name3="C:/../AMPA_Inh_fast.atf"
+file_name4="C:/../AMPA_Inh_fastnorm.atf"
+file_name5="C:/../Inh_slow.atf"
+file_name6="C:/../Inh_fast.atf"
+file_name7="C:/../Inh_fastnorm.atf"
+
+
+// Numerical parameters for simulation.
+tstop = 300 // stop time of simulation
+stimStart=20
+dtime=0.2
+simul_iter=10
+
+scale_tau=0.2 //to normalize tau and peak amplitude to obtain same integral
+ampaWeight=0.00014
+nmdaWeight=ampaWeight
+GABAweight_total=1.4*0.0005
+
+alpha_vspom=-0.087
+v0_block=-10
+
+//synGABA[0] is not rectifying, synGABA[1] is rectifying
+GABAweight0=GABAweight_total/5 
+GABAweight1=4*GABAweight_total/5  
+GABAtau2=30
+GABAtau1=1.0
+
+synGABA[0].tau1= 0.5
+synGABA[0].tau2 = 15 
+ncGABA[0].weight = GABAweight0 
+synGABA[0].slope_factor=0.3
+synGABA[0].V50=-150
+
+synGABA[1].tau1= GABAtau1
+synGABA[1].tau2 = GABAtau2
+ncGABA[1].weight = GABAweight1
+synGABA[1].slope_factor=3
+synGABA[1].V50=-52
+
+ncAMPA[0].weight = ampaWeight
+ncNMDA[0].weight = nmdaWeight
+ncAMPA[1].weight = 0.5*ampaWeight
+ncNMDA[1].weight = nmdaWeight
+ncAMPA[2].weight = ampaWeight/2
+ncNMDA[2].weight = nmdaWeight
+
+//setup recording vectors
+objref recv, rect
+recv = new Vector()
+rect = new Vector()
+storeM_slow = new Matrix(tstop/dtime+1,simul_iter) 
+storeM_fast = new Matrix(tstop/dtime+1,simul_iter)
+storeM_fastnorm = new Matrix(tstop/dtime+1,simul_iter)
+storeM_AMPA = new Matrix(tstop/dtime+1,simul_iter)
+storeM_slow_AMPA = new Matrix(tstop/dtime+1,simul_iter)
+storeM_fast_AMPA = new Matrix(tstop/dtime+1,simul_iter)
+storeM_fastnorm_AMPA = new Matrix(tstop/dtime+1,simul_iter)
+
+recv.record(&dend.v(0.5),dtime)
+rect.record(&t)
+
+// Create graphs for visualisation.
+objref Inh_slow, Inh_fast, Inh_fast_norm
+objref Inh_slow_noNMDA, Inh_fast_noNMDA, Inh_fast_norm_noNMDA
+objref AMPA_only, shapeSyn 
+
+Inh_slow = new Graph() 
+Inh_slow.label("Slow inhibition")
+Inh_slow.addvar("dend.v(0.5)",2,1)
+Inh_slow.exec_menu("Keep Lines")
+Inh_slow.size(0,tstop,-75,-15)
+
+Inh_fast = new Graph() 
+Inh_fast.label("Fast inhibition")
+Inh_fast.addvar("dend.v(0.5)",2,1)
+Inh_fast.exec_menu("Keep Lines")
+Inh_fast.size(0,tstop,-75,-15)
+
+Inh_fast_norm = new Graph() 
+Inh_fast_norm.label("Fast inhibition, amplitude adjusted")
+Inh_fast_norm.addvar("dend.v(0.5)",2,1)
+Inh_fast_norm.exec_menu("Keep Lines")
+Inh_fast_norm.size(0,tstop,-75,-15)
+
+Inh_slow_noNMDA = new Graph()
+Inh_slow_noNMDA.label("Slow inhibition, no NMDA")
+Inh_slow_noNMDA.addvar("dend.v(0.5)",2,1)
+Inh_slow_noNMDA.exec_menu("Keep Lines")
+Inh_slow_noNMDA.size(0,tstop,-75,-15)
+
+Inh_fast_noNMDA = new Graph()
+Inh_fast_noNMDA.label("Fast inhibition, no NMDA")
+Inh_fast_noNMDA.addvar("dend.v(0.5)",2,1)
+Inh_fast_noNMDA.exec_menu("Keep Lines")
+Inh_fast_noNMDA.size(0,tstop,-75,-15)
+
+Inh_fast_norm_noNMDA = new Graph()
+Inh_fast_norm_noNMDA.label("Fast inhibition, amplitude adjusted, no NMDA")
+Inh_fast_norm_noNMDA.addvar("dend.v(0.5)",2,1)
+Inh_fast_norm_noNMDA.exec_menu("Keep Lines")
+Inh_fast_norm_noNMDA.size(0,tstop,-75,-15)
+
+AMPA_only = new Graph()
+AMPA_only.label("No inhibition, no NMDA")
+AMPA_only.addvar("dend.v(0.5)",2,1)
+AMPA_only.exec_menu("Keep Lines")
+AMPA_only.size(0,tstop,-75,-15)
+
+shapeSyn = new Shape()
+shapeSyn.label("Syn")
+
+// Adjust GABA synapse dynamics
+shapeSyn.point_mark(synGABA[0],3,"O",6)
+for (ii=0; ii<n_GABA_syn; ii=ii+1){
+    synGABA[ii].isOn=1
+    synGABA[ii].e = inhRev
+
+    nsGABA[ii].interval = 20
+    nsGABA[ii].number = 5
+    nsGABA[ii].start = stimStart
+    nsGABA[ii].noise = 0
+    ncGABA[ii].delay = 0
+}
+// IMPLEMENT SYNAPTIC SHORT-TERM PLASTICITY, PART I
+shapeSyn.point_mark(synAMPA[0],2,"O",6)
+
+nsAMPA[0].number = 5
+nsAMPA[0].start = stimStart
+
+nsNMDA[0].number = 5
+nsNMDA[0].start = stimStart
+
+nsAMPA[1].number = 4
+nsAMPA[1].start = stimStart+20
+
+nsNMDA[1].number = 4
+nsNMDA[1].start = stimStart+20
+
+nsAMPA[2].number = 3
+nsAMPA[2].start = stimStart+40
+
+nsNMDA[2].number = 3
+nsNMDA[2].start = stimStart+40
+
+for (ii=0; ii<n_glu_syn; ii=ii+1){
+    synAMPA[ii].isOn=1
+    synNMDA[ii].isOn=1
+    synAMPA[ii].tau1= 0.2  // Jarsky et al., 2005
+    synAMPA[ii].tau2 = 2 // Jarsky et al., 2005
+
+    nsAMPA[ii].interval = 20
+    nsAMPA[ii].noise = 0
+    ncAMPA[ii].delay = 0
+
+    synNMDA[ii].tau1= 3  
+    synNMDA[ii].tau2 = 35
+    
+    nsNMDA[ii].interval = 20
+    nsNMDA[ii].noise = 0
+    ncNMDA[ii].delay = 0
+    synNMDA[ii].alpha_vspom=alpha_vspom
+    synNMDA[ii].v0_block=v0_block
+}
+// turn off cvode variable time step in order to avoid errors during repetitive simulations
+cvode_active(0)
+    
+// run simulation for different current steps
+for(jj=1; jj<simul_iter+1; jj=jj+1){
+    print jj
+    // IMPLEMENT SYNAPTIC SHORT-TERM PLASTICITY, PART II
+    ncAMPA[0].weight = jj*ampaWeight
+    ncNMDA[0].weight = jj*nmdaWeight
+    ncAMPA[1].weight = jj*ampaWeight/2
+    ncNMDA[1].weight = jj*nmdaWeight/2
+    ncAMPA[2].weight = jj*ampaWeight/2
+    ncNMDA[2].weight = jj*nmdaWeight/2
+    
+    //AMPA only 
+    for (ii=0; ii<n_glu_syn; ii=ii+1){
+        synAMPA[ii].isOn=1
+        synNMDA[ii].isOn=0
+    }
+    for (ii=0; ii<n_GABA_syn; ii=ii+1){
+        synGABA[ii].isOn=0
+    }
+    if (jj%2==1){curGr = graphList[0].append(AMPA_only) }
+    finitialize()
+    run()
+    if (jj%2==1){   graphList[0].remove(curGr-1)   }
+    storeM_AMPA.setcol(jj-1,recv)
+    
+    //AMPA with slow inhibition
+    for (ii=0; ii<n_GABA_syn; ii=ii+1){
+        synGABA[ii].isOn=1
+    }
+    if (jj%2==1){curGr = graphList[0].append(Inh_slow_noNMDA)}
+    finitialize()
+    run()
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    storeM_slow_AMPA.setcol(jj-1,recv)
+    
+    //AMPA with fast inhibition, amplitude constant
+    synGABA[1].tau1= GABAtau1 * scale_tau
+    synGABA[1].tau2 = GABAtau2 * scale_tau
+    if (jj%2==1){curGr = graphList[0].append(Inh_fast_noNMDA)}
+    finitialize()
+    run()
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    storeM_fast_AMPA.setcol(jj-1,recv)
+    
+    //AMPA with fast inhibition, increased amplitude to achieve same integral (i.e. charge transfer)    
+    ncGABA[1].weight = GABAweight1/scale_tau
+    if (jj%2==1){curGr = graphList[0].append(Inh_fast_norm_noNMDA)}
+    finitialize()
+    run()
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    storeM_fastnorm_AMPA.setcol(jj-1,recv)
+    
+    //plus NMDA 
+    for (ii=0; ii<n_glu_syn; ii=ii+1){
+        synNMDA[ii].isOn=1
+    }
+    
+    // slow inhbition
+    synGABA[1].tau1= GABAtau1
+    synGABA[1].tau2 = GABAtau2
+    ncGABA[1].weight = GABAweight1
+    if (jj%2==1){curGr = graphList[0].append(Inh_slow)}
+    finitialize()
+    run()
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    storeM_slow.setcol(jj-1,recv)
+    
+    //fast inhibition, amplitude constant
+    synGABA[1].tau1= GABAtau1 * scale_tau
+    synGABA[1].tau2 = GABAtau2 * scale_tau
+    if (jj%2==1){curGr = graphList[0].append(Inh_fast)}
+    finitialize()
+    run()
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    storeM_fast.setcol(jj-1,recv)
+    
+    //fast inhibition, increased amplitude to achieve same integral (i.e. charge transfer)    
+    ncGABA[1].weight = GABAweight1/scale_tau
+    if (jj%2==1){curGr = graphList[0].append(Inh_fast_norm)}
+    finitialize()
+    run()
+    if (jj%2==1){graphList[0].remove(curGr-1)    }
+    storeM_fastnorm.setcol(jj-1,recv)
+    
+    // reset GABA synapse
+    synGABA[1].tau1= GABAtau1
+    synGABA[1].tau2 = GABAtau2
+    ncGABA[1].weight = GABAweight1
+}
+/*
+// save output to file
+print2file(storeM_AMPA,file_name1,ColLabel)
+print2file(storeM_slow_AMPA,file_name2,ColLabel)
+print2file(storeM_fast_AMPA,file_name3,ColLabel)
+print2file(storeM_fastnorm_AMPA,file_name4,ColLabel)
+print2file(storeM_slow,file_name5,ColLabel)
+print2file(storeM_fast,file_name6,ColLabel)
+print2file(storeM_fastnorm,file_name7,ColLabel)
+*/
