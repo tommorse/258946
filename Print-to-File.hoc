@@ -7,8 +7,9 @@
 print "Exit with CTRL D"
 
 //load_file("nrngui.hoc")
-load_file("C:/Daten/Modeling/Alpha5_NMDA_single_comp/shared/ATF.hoc") 
+load_file("shared/ATF.hoc") 
 
+objref outfile
 
 proc print2file(){ 	//print vectors into file
 	outfile = new ATF_File($s2) //has to be a string, can include address for subfolders

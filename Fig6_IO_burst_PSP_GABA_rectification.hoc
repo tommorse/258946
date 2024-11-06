@@ -9,10 +9,10 @@ objref storeM_slow, storeM_noRect, storeM_onlyRect, storeM_partRect
 load_file("Print-to-File.hoc")
 
 ColLabel = "Membrane potential"
-file_name1="C:/../Inh_slow.atf"
-file_name2="C:/../Inh_noRect.atf"
-file_name3="C:/../Inh_onlyRect.atf"
-file_name4="C:/../Inh_partRect.atf"
+file_name1="Inh_slow.atf"
+file_name2="Inh_noRect.atf"
+file_name3="Inh_onlyRect.atf"
+file_name4="Inh_partRect.atf"
 
 // Numerical parameters for simulation.
 tstop = 300 // stop time of simulation
@@ -194,10 +194,9 @@ for(jj=1; jj<simul_iter+1; jj=jj+1){
     if (jj%2==1){graphList[0].remove(curGr-1)    }    
     ncGABA[1].weight = GABAweight1
 }
-/*
+
 // SAVE OUTPUT
 print2file(storeM_slow,file_name1,ColLabel)
 print2file(storeM_noRect,file_name2,ColLabel)
 print2file(storeM_onlyRect,file_name3,ColLabel)
 print2file(storeM_partRect,file_name4,ColLabel)
-*/

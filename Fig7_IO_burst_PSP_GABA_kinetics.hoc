@@ -9,13 +9,13 @@ objref storeM_slow, storeM_fast, storeM_fastnorm, storeM_AMPA, storeM_slow_AMPA,
 load_file("Print-to-File.hoc")
 
 ColLabel = "Membrane potential"
-file_name1="C:/../AMPA_no_Inh.atf"
-file_name2="C:/../AMPA_Inh_slow.atf"
-file_name3="C:/../AMPA_Inh_fast.atf"
-file_name4="C:/../AMPA_Inh_fastnorm.atf"
-file_name5="C:/../Inh_slow.atf"
-file_name6="C:/../Inh_fast.atf"
-file_name7="C:/../Inh_fastnorm.atf"
+file_name1="AMPA_no_Inh.atf"
+file_name2="AMPA_Inh_slow.atf"
+file_name3="AMPA_Inh_fast.atf"
+file_name4="AMPA_Inh_fastnorm.atf"
+file_name5="Inh_slow.atf"
+file_name6="Inh_fast.atf"
+file_name7="Inh_fastnorm.atf"
 
 
 // Numerical parameters for simulation.
@@ -266,7 +266,7 @@ for(jj=1; jj<simul_iter+1; jj=jj+1){
     synGABA[1].tau2 = GABAtau2
     ncGABA[1].weight = GABAweight1
 }
-/*
+
 // save output to file
 print2file(storeM_AMPA,file_name1,ColLabel)
 print2file(storeM_slow_AMPA,file_name2,ColLabel)
@@ -275,4 +275,3 @@ print2file(storeM_fastnorm_AMPA,file_name4,ColLabel)
 print2file(storeM_slow,file_name5,ColLabel)
 print2file(storeM_fast,file_name6,ColLabel)
 print2file(storeM_fastnorm,file_name7,ColLabel)
-*/
